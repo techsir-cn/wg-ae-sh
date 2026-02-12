@@ -144,10 +144,12 @@ mkdir -p /etc/wireguard
 
 ### 步骤 2：下载并授权脚本
 ```sh
-wget https://raw.githubusercontent.com/yourname/wg-ae/main/wg-ae-sh -O /etc/wireguard/wg-ae-sh && chmod +x /etc/wireguard/wg-ae-sh
+wget https://raw.githubusercontent.com/techsir-cn/wg-ae-sh/refs/heads/main/wg-ae-sh -O /etc/wireguard/wg-ae-sh && chmod +x /etc/wireguard/wg-ae-sh
 ```
-
-> 🔔 **注意**：请将 `https://raw.githubusercontent.com/yourname/wg-ae/main/wg-ae-sh` 替换为实际的脚本 URL。
+如果网络有问题不能下载，则可以使用加速器下载
+```sh
+wget https://ghfast.top/https://raw.githubusercontent.com/techsir-cn/wg-ae-sh/refs/heads/main/wg-ae-sh -O /etc/wireguard/wg-ae-sh && chmod +x /etc/wireguard/wg-ae-sh
+```
 
 ### 步骤 3：配置定时任务
 ```sh
