@@ -8,9 +8,9 @@ INTERFACE="wg0"
 LOG_FILE="/etc/wireguard/wg-ae-log"
 
 # Peer 0（必须启用）
-PEER_0_PUBLIC_KEY="GcMtEolX36ldUFRrgz2zcpaeoOkRGXA8bk0ZdyzBuBo="
-PEER_0_ENDPOINT="rb.changwei.online:51820"
-PEER_0_DNS_SERVER="dns17.hichina.com"
+PEER_0_PUBLIC_KEY="粘贴你自己的peer的Publickey"
+PEER_0_ENDPOINT="填入你自己需要监控的peer的endpoint域名:端口"
+PEER_0_DNS_SERVER="填入你自己的ddns服务器，最好是权威dns服务器，递归dns服务器会慢一些"
 
 # Peer 1（按需取消注释）
 #PEER_1_PUBLIC_KEY="TrMv...WXX0="
