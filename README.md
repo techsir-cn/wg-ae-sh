@@ -48,13 +48,13 @@ INTERFACE="wg0"
 LOG_FILE="/etc/wireguard/wg-ae-log"
 
 # Peer 0（必须启用）
-PEER_0_PUBLIC_KEY="GcMtEolX36ldUFRrgz2zcpaeoOkRGXA8bk0ZdyzBuBo="
-PEER_0_ENDPOINT="rb.changwei.online:51820"
+PEER_0_PUBLIC_KEY="your public key"
+PEER_0_ENDPOINT="your.domain.com:51820"
 PEER_0_DNS_SERVER="dns17.hichina.com"
 
 # Peer 1（按需取消注释）
 #PEER_1_PUBLIC_KEY="TrMv...WXX0="
-#PEER_1_ENDPOINT="mt-node.example.com:51820"
+#PEER_1_ENDPOINT="node.example.com:51820"
 #PEER_1_DNS_SERVER="dns18.hichina.com"
 # === WG-AE 接口1配置区结束
 
