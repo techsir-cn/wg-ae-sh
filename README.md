@@ -165,6 +165,25 @@ crontab -l
 ```
 正确的话，会显示和你输入一样的内容，比如：*/5 * * * * /etc/wireguard/wg-ae-sh
 
+设置cron开机自启动
+```sh
+/etc/init.d/cron enable
+```
+手动启动cron
+```sh
+/etc/init.d/cron start
+```
+检查是否运行
+```sh
+/etc/init.d/cron status
+```
+应该显示
+running
+则代表cron已经开始运行，每5分钟会自动执行一次
+
+或者使用luci界面来操作cron计划任务
+
+
 ### 步骤 4：安装dig工具
 有些openwrt系统没有内置dig工具的，输入以下命令安装
 ```sh
