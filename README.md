@@ -153,13 +153,28 @@ wget https://raw.githubusercontent.com/yourname/wg-ae/main/wg-ae-sh -O /etc/wire
 ```sh
 crontab -e
 ```
-在打开的编辑器中添加以下行：
+打开的编辑器，类似于vi编辑器，命令格式通用。
+进入编辑器，按"i"进入编辑模式，添加以下行：
 ```cron
 */5 * * * * /etc/wireguard/wg-ae-sh
 ```
+然后按esc进入命令模式，在出现的:后面输入wq后回车，即可保持并退出；
+可以使用以下命令来验证是否加入了计划任务：
+```sh
+crontab -l
+```
+正确的话，会显示和你输入一样的内容，比如：*/5 * * * * /etc/wireguard/wg-ae-sh
+
+### 步骤 4：安装dig工具
+有些openwrt系统没有内置dig工具的，输入以下命令安装
+```sh
+opkg updat
+opkg install bind-dig
+```
 
 > ✅ **完成！**  
-> - 日志自动写入 `/etc/wireguard/wg-ae-log`  
+> - 日志自动写入 `/etc/wireguard/wg-ae-log`
+> - 可以输入`cat /etc/wireguard/wg-ae-log或者在/etc/wireguard目录下输入cat wg-ae-log`来查看日志，每5分钟自动执行一次都会有记录
 > - 无需区分 Linux/OpenWrt  
 > - 无需 systemd/init.d 配置
 
