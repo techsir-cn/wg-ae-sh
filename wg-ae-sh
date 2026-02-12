@@ -1,0 +1,132 @@
+#!/bin/sh
+# wg-ae-sh v1.0
+# WireGuard AutoUpdate-Endpoint
+# Specification: https://github.com/techsir-cn/wg-ae-sh/blob/main/README.md
+
+# === WG-AE 接口1配置区 ===
+INTERFACE="wg0"
+LOG_FILE="/etc/wireguard/wg-ae-log"
+
+# Peer 0（必须启用）
+PEER_0_PUBLIC_KEY="GcMtEolX36ldUFRrgz2zcpaeoOkRGXA8bk0ZdyzBuBo="
+PEER_0_ENDPOINT="rb.changwei.online:51820"
+PEER_0_DNS_SERVER="dns17.hichina.com"
+
+# Peer 1（按需取消注释）
+#PEER_1_PUBLIC_KEY="TrMv...WXX0="
+#PEER_1_ENDPOINT="mt-node.example.com:51820"
+#PEER_1_DNS_SERVER="dns18.hichina.com"
+# === WG-AE 接口1配置区结束
+
+# === WG-AE 接口2配置区（复制上一段，改 INTERFACE="wg1"）===
+#INTERFACE="wg1"
+#LOG_FILE="/etc/wireguard/wg-ae-wg1-log"
+#PEER_0_PUBLIC_KEY="..."
+#PEER_0_ENDPOINT="..."
+#PEER_0_DNS_SERVER="..."
+# === WG-AE 接口2配置区结束
+
+# =============================================================================
+# 以下为脚本逻辑，用户无需修改
+# =============================================================================
+
+log() {
+    mkdir -p "$(dirname "$LOG_FILE")"
+    printf '%s [wg-ae] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG_FILE"
+}
+
+get_current_endpoint() {
+    # 从 wg show 提取指定 Peer 的 endpoint
+    wg show "$INTERFACE" | awk -v pk="$1" '
+        $1 == "peer:" && $2 == pk { in_peer=1; next }
+        in_peer && $1 == "endpoint:" {
+            gsub(/endpoint:/, "", $0)
+            gsub(/^[ \t]+/, "", $0)
+            print $0
+            exit
+        }
+        $1 == "peer:" { in_peer=0 }
+    '
+}
+
+resolve_ip() {
+    local domain="$1"
+    local dns_server="$2"
+    local record_type="$3"
+    dig +short "$record_type" "@$dns_server" "$domain" 2>/dev/null | head -n1
+}
+
+update_peer_endpoint() {
+    local public_key="$1"
+    local new_ip="$2"
+    local port="$3"
+    wg set "$INTERFACE" peer "$public_key" endpoint "$new_ip:$port"
+}
+
+# 自动创建日志目录
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# 获取所有 PEER_N_* 变量
+peer_indices=$(set | grep -E '^PEER_[0-9]+_PUBLIC_KEY=' | sed 's/^PEER_\([0-9]*\)_PUBLIC_KEY=.*/\1/' | sort -n)
+
+if [ -z "$peer_indices" ]; then
+    log "ERROR: No PEER_N_PUBLIC_KEY defined in configuration"
+    exit 1
+fi
+
+for idx in $peer_indices; do
+    eval "public_key=\$PEER_${idx}_PUBLIC_KEY"
+    eval "endpoint_str=\$PEER_${idx}_ENDPOINT"
+    eval "dns_server=\$PEER_${idx}_DNS_SERVER"
+
+    if [ -z "$public_key" ] || [ -z "$endpoint_str" ] || [ -z "$dns_server" ]; then
+        log "Peer $idx: ERROR - Missing configuration"
+        exit 1
+    fi
+
+    # 分离域名和端口
+    domain="${endpoint_str%:*}"
+    port="${endpoint_str##*:}"
+    if [ "$domain" = "$endpoint_str" ]; then
+        log "Peer $idx: ERROR - Invalid endpoint format (expected domain:port)"
+        exit 1
+    fi
+
+    # 获取当前运行时 endpoint
+    current_endpoint=$(get_current_endpoint "$public_key")
+    if [ -z "$current_endpoint" ]; then
+        log "Peer $idx: ERROR - Peer not found in wg show $INTERFACE output"
+        exit 1
+    fi
+
+    # 判断 IP 版本
+    if echo "$current_endpoint" | grep -q '\['; then
+        # IPv6: [2001::1]:51820
+        current_ip=$(echo "$current_endpoint" | sed 's/^\[\([^]]*\)\]:[0-9]*$/\1/')
+        record_type="AAAA"
+    else
+        # IPv4: 192.168.1.1:51820
+        current_ip=$(echo "$current_endpoint" | cut -d: -f1)
+        record_type="A"
+    fi
+
+    # DNS 查询
+    resolved_ip=$(resolve_ip "$domain" "$dns_server" "$record_type")
+    if [ -z "$resolved_ip" ]; then
+        log "Peer $idx: ERROR - DNS query failed for $domain ($record_type via $dns_server)"
+        exit 1
+    fi
+
+    # 比较并更新
+    if [ "$resolved_ip" != "$current_ip" ]; then
+        if ! update_peer_endpoint "$public_key" "$resolved_ip" "$port"; then
+            log "Peer $idx: ERROR - wg set failed"
+            exit 1
+        fi
+        log "Peer $idx: Domain=$domain | Current=$current_ip | Resolved=$resolved_ip | Status=DIFFERENT (updated)"
+    else
+        log "Peer $idx: Domain=$domain | Current=$current_ip | Resolved=$resolved_ip | Status=SAME"
+    fi
+done
+
+exit 0
