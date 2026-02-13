@@ -1,7 +1,9 @@
 # wg-ae-sh
 WireGuard AutoUpdate-Endpoint Shell
-
 ---
+![Shell Script](https://img.shields.io/badge/shell-script-green?logo=gnu-bash)
+![License](https://img.shields.io/github/license/techsir-cn/wg-ae-sh)
+
 
 # README.md
 
