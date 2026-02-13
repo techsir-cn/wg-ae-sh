@@ -1,10 +1,9 @@
 # wg-ae-sh
 WireGuard AutoUpdate-Endpoint Shell
-以下是 ** `wg-ae-spec.md v1.0`**：
 
 ---
 
-# wg-ae-spec.md
+# README.md
 
 **WireGuard AutoUpdate-Endpoint 技术规范**  
 **说明：一个脚本，它通过强制解析Dns的方法，监测Endpoint域名对应的ip地址变动情况，并且使用变动后的最新ip地址，动态更新对端的Endpoint信息，在不重新启动WireGuard接口的情况下，维持隧道的通信**  
