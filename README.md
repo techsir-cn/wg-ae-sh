@@ -1,22 +1,24 @@
-# wg-ae-sh
-WireGuard AutoUpdate-Endpoint Shell
+
+
+# wg-du
+WireGuard 动态更新（Dynamic Update）
 ---
 ![Shell Script](https://img.shields.io/badge/shell-script-green?logo=gnu-bash)
-![License](https://img.shields.io/github/license/techsir-cn/wg-ae-sh)
+![License](https://img.shields.io/github/license/techsir-cn/wg-du)
 
 
 # README.md
 
-**WireGuard AutoUpdate-Endpoint 技术规范**  
+**WireGuard 动态更新 技术规范**  
 **说明：一个脚本，它通过强制解析Dns的方法，监测Endpoint域名对应的ip地址变动情况，并且使用变动后的最新ip地址，动态更新对端的Endpoint信息，在不重新启动WireGuard接口的情况下，维持隧道的通信**  
-**版本：v1.0**  
-**最后更新：2026-02-12**
+**版本：v1.1**  
+**最后更新：2026-02-19**
 
 ---
 
 ## 1. 目标
 
-解决 WireGuard 的固有限制，这个限制就是--**仅在接口启动时解析 Endpoint 域名一次**，当 Peer 信息中的Endpoint使用的是 DDNS， 且该域名对应的公网 IP 变更后，连接会被迫中断。  
+wireguard-tools软件包，或者说wg-quick工具，有一个固有限制，就是它**仅在接口启动时解析 Endpoint 域名一次**，当 Peer 信息中的Endpoint使用的是 DDNS， 且该域名对应的公网 IP 变更后，连接会被迫中断，必须重启wg接口才可以。本项目就是为了解决这个问题。
 
 本方案通过定时脚本，执行如下动作：
 
@@ -44,9 +46,9 @@ WireGuard AutoUpdate-Endpoint Shell
 脚本头部必须按以下结构定义（支持多接口、多 Peer）：
 
 ```sh
-# === WG-AE 接口1配置区 ===
+# === WG-DU 接口1配置区 ===
 INTERFACE="wg0"
-LOG_FILE="/etc/wireguard/wg-ae-log"
+LOG_FILE="/etc/wireguard/wg-du.log"
 
 # Peer 0（必须启用）
 PEER_0_PUBLIC_KEY="your public key"
@@ -57,9 +59,9 @@ PEER_0_DNS_SERVER="dns17.hichina.com"
 #PEER_1_PUBLIC_KEY="TrMv...WXX0="
 #PEER_1_ENDPOINT="node.example.com:51820"
 #PEER_1_DNS_SERVER="dns18.hichina.com"
-# === WG-AE 接口1配置区结束
+# === WG-DU 接口1配置区结束
 
-# === WG-AE 接口2配置区（复制上一段，改 INTERFACE="wg1"）===
+# === WG-DU 接口2配置区（复制上一段，改 INTERFACE="wg1"）===
 ```
 
 ### 字段说明
@@ -67,7 +69,7 @@ PEER_0_DNS_SERVER="dns17.hichina.com"
 | 字段 | 必填 | 说明 |
 |------|------|------|
 | `INTERFACE` | 是 | WireGuard 接口名（如 `wg0`） |
-| `LOG_FILE` | 是 | **默认硬编码为 `/etc/wireguard/wg-ae-log`**，脚本启动时自动创建目录 |
+| `LOG_FILE` | 是 | **默认硬编码为 `/etc/wireguard/wg-du.log`**，脚本启动时自动创建目录 |
 | `PEER_N_PUBLIC_KEY` | 是 | Peer 公钥（从 `wg0.conf` 复制，**必须与 `wg show` 输出一致**） |
 | `PEER_N_ENDPOINT` | 是 | 格式：`域名:端口`（与 `wg0.conf` 中 Endpoint 完全一致） |
 | `PEER_N_DNS_SERVER` | 是 | 该域名的**权威 DNS 服务器**（如阿里云分配的 `dns17.hichina.com`）可以在域名服务商的控制台内查看，如果不知道，就填公共DNS服务器，但是可能会受到TTL和递归时间的影响 |
@@ -111,10 +113,10 @@ PEER_0_DNS_SERVER="dns17.hichina.com"
 每次执行必须记录以下信息到 `LOG_FILE`：
 
 ```
-[YYYY-MM-DD HH:MM:SS] [wg-ae] Peer N: Domain=xxx | Current=xxx | Resolved=xxx | Status= SAME/DIFFERENT
+[YYYY-MM-DD HH:MM:SS] [wg-du] Peer N: Domain=xxx | Current=xxx | Resolved=xxx | Status= same/diff
 ```
 
-- **Status=DIFFERENT** 时，额外记录更新操作（后续阶段实现）
+- **Status=diff** 时，表示已执行更新操作
 
 ---
 
@@ -124,7 +126,7 @@ PEER_0_DNS_SERVER="dns17.hichina.com"
 |------|------|
 | **Shell** | POSIX `/bin/sh`（兼容 OpenWrt BusyBox 和 Linux bash） |
 | **依赖工具** | `wg`, `dig`, `grep`, `awk`, `cut`, `head`（OpenWrt 默认包含） |
-| **文件命名** | 仅允许字母、数字、连字符（如 `wg-ae-sh`） |
+| **文件命名** | 仅允许字母、数字、连字符（如 `wg-du`） |
 
 ---
 
@@ -132,6 +134,7 @@ PEER_0_DNS_SERVER="dns17.hichina.com"
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
+| v1.1 | 2026-02-19 | 项目更名为 wg-du；日志标识简化为 same/diff；支持命令行选项（-h/-p/-install）；自动创建 /etc/wireguard 目录；帮助信息含双语 cron 与服务管理指引 |
 | v1.0 | 2026-02-12 | 初始定稿：包含配置格式、DNS 规则、IP 版本匹配、CNAME 处理、多 Peer/接口支持 |
 
 ---
@@ -145,28 +148,37 @@ mkdir -p /etc/wireguard
 
 ### 步骤 2：下载并授权脚本
 ```sh
-wget https://raw.githubusercontent.com/techsir-cn/wg-ae-sh/refs/heads/main/wg-ae-sh -O /etc/wireguard/wg-ae-sh && chmod +x /etc/wireguard/wg-ae-sh
+wget https://raw.githubusercontent.com/techsir-cn/wg-du/refs/heads/main/wg-du -O wg-du && chmod +x wg-du
 ```
 如果网络有问题不能下载，则可以使用加速器下载
 ```sh
-wget https://ghfast.top/https://raw.githubusercontent.com/techsir-cn/wg-ae-sh/refs/heads/main/wg-ae-sh -O /etc/wireguard/wg-ae-sh && chmod +x /etc/wireguard/wg-ae-sh
+wget https://ghfast.top/https://raw.githubusercontent.com/techsir-cn/wg-du/refs/heads/main/wg-du -O wg-du && chmod +x wg-du
 ```
 
-### 步骤 3：配置定时任务
+### 步骤 3：安装到系统路径（可选但推荐）
+```sh
+sudo ./wg-du -install
+```
+此命令将：
+- 复制脚本到 `/usr/bin/wg-du`
+- 自动创建 `/etc/wireguard/` 目录
+- 打印详细的 cron 与服务管理命令（中英文）
+
+### 步骤 4：配置定时任务
 ```sh
 crontab -e
 ```
 打开的编辑器，类似于vi编辑器，命令格式通用。
 进入编辑器，按"i"进入编辑模式，添加以下行：
 ```cron
-*/5 * * * * /etc/wireguard/wg-ae-sh
+*/5 * * * * wg-du
 ```
 然后按esc进入命令模式，在出现的:后面输入wq后回车，即可保持并退出；
 可以使用以下命令来验证是否加入了计划任务：
 ```sh
 crontab -l
 ```
-正确的话，会显示和你输入一样的内容，比如：*/5 * * * * /etc/wireguard/wg-ae-sh
+正确的话，会显示和你输入一样的内容，比如：*/5 * * * * wg-du
 
 设置cron开机自启动
 ```sh
@@ -186,17 +198,21 @@ running
 
 或者使用luci界面来操作cron计划任务
 
-
-### 步骤 4：安装dig工具
+### 步骤 5：安装dig工具
 有些openwrt系统没有内置dig工具的，输入以下命令安装
 ```sh
-opkg updat
+opkg update
 opkg install bind-dig
 ```
 
+### 步骤 6：查看日志与状态
+- 查看变动记录：`wg-du -p`
+- 查看全部日志：`wg-du -p -a`
+- 查看帮助：`wg-du -h`
+
 > ✅ **完成！**  
-> - 日志自动写入 `/etc/wireguard/wg-ae-log`
-> - 可以输入`cat /etc/wireguard/wg-ae-log或者在/etc/wireguard目录下输入cat wg-ae-log`来查看日志，每5分钟自动执行一次都会有记录
+> - 日志自动写入 `/etc/wireguard/wg-du.log`
+> - 可以输入`cat /etc/wireguard/wg-du.log或者在/etc/wireguard目录下输入cat wg-du.log`来查看日志，每5分钟自动执行一次都会有记录
 > - 无需区分 Linux/OpenWrt  
 > - 无需 systemd/init.d 配置
 
