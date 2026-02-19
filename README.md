@@ -148,11 +148,11 @@ mkdir -p /etc/wireguard
 
 ### 步骤 2：下载并授权脚本
 ```sh
-wget https://raw.githubusercontent.com/techsir-cn/wg-du/refs/heads/main/wg-du -O wg-du && chmod +x wg-du
+wget https://github.com/techsir-cn/wg-du/releases/download/v1.1/wg-du -O wg-du && chmod +x wg-du
 ```
 如果网络有问题不能下载，则可以使用加速器下载
 ```sh
-wget https://ghfast.top/https://raw.githubusercontent.com/techsir-cn/wg-du/refs/heads/main/wg-du -O wg-du && chmod +x wg-du
+wget https://ghfast.top/https://github.com/techsir-cn/wg-du/releases/download/v1.1/wg-du -O wg-du && chmod +x wg-du
 ```
 
 ### 步骤 3：安装到系统路径（可选但推荐）
