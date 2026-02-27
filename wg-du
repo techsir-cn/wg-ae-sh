@@ -1,0 +1,227 @@
+#!/bin/sh
+# wg-du v1.1
+# WireGuard 动态更新 (Dynamic Update)
+# Specification: https://github.com/techsir-cn/wg-du
+
+# === WG-DU 接口1配置区 ===
+INTERFACE="wg0"
+LOG_FILE="/etc/wireguard/wg-du.log"
+
+# Peer 0..................
+PEER_0_PUBLIC_KEY="GcMtEolX36ldUFRrgz2zcpaeoOkRGXA8bk0ZdyzBuBo="
+PEER_0_ENDPOINT="rb.changwei.online:51820"
+PEER_0_DNS_SERVER="dns17.hichina.com"
+
+# Peer 1（按需取消注释）
+#PEER_1_PUBLIC_KEY="TrMv...WXX0="
+#PEER_1_ENDPOINT="mt-node.example.com:51820"
+#PEER_1_DNS_SERVER="dns18.hichina.com"
+# === WG-DU 接口1配置区结束
+
+# === WG-DU 接口2配置区（复制上一段，改 INTERFACE="wg1"）===
+#INTERFACE="wg1"
+#LOG_FILE="/etc/wireguard/wg-du-wg1.log"
+#PEER_0_PUBLIC_KEY="..."
+#PEER_0_ENDPOINT="..."
+#PEER_0_DNS_SERVER="..."
+# === WG-DU 接口2配置区结束
+
+# =============================================================================
+# 以下为脚本逻辑，用户无需修改
+# =============================================================================
+
+log() {
+    mkdir -p "$(dirname "$LOG_FILE")"
+    printf '%s|%s\n' "$(date '+%Y-%m-%d_%H:%M:%S')" "$*" >> "$LOG_FILE"
+}
+
+get_current_endpoint() {
+    wg show "$INTERFACE" | awk -v pk="$1" '
+        $1 == "peer:" && $2 == pk { in_peer=1; next }
+        in_peer && $1 == "endpoint:" {
+            gsub(/endpoint:/, "", $0)
+            gsub(/^[ \t]+/, "", $0)
+            print $0
+            exit
+        }
+        $1 == "peer:" { in_peer=0 }
+    '
+}
+
+resolve_ip() {
+    local domain="$1"
+    local dns_server="$2"
+    local record_type="$3"
+    dig +short "$record_type" "@$dns_server" "$domain" 2>/dev/null | head -n1
+}
+
+update_peer_endpoint() {
+    local public_key="$1"
+    local new_ip="$2"
+    local port="$3"
+    wg set "$INTERFACE" peer "$public_key" endpoint "$new_ip:$port"
+}
+
+print_help() {
+    cat << 'EOF'
+Usage / 用法:
+  wg-du                # Run DDNS update (for cron) / 执行DDNS更新（用于定时任务）
+  wg-du -h             # Show this help / 显示帮助
+  wg-du -p             # Print records with diff / 仅显示变动记录
+  wg-du -p -a          # Print all log records / 显示全部日志
+  wg-du -install       # Install to /usr/bin/wg-du (requires root) / 安装到系统路径（需root）
+
+Cron Setup / 定时任务设置:
+  Edit: crontab -e
+  Add line: */5 * * * * wg-du
+  Verify: crontab -l
+
+Service Management / 服务管理:
+  [Linux systemd]: systemctl enable/start/status cron
+  [OpenWrt]: /etc/init.d/cron enable/start/status
+EOF
+}
+
+print_log() {
+    if [ ! -f "$LOG_FILE" ]; then
+        echo "Log file not found: $LOG_FILE" >&2
+        return 1
+    fi
+    if [ "$1" = "all" ]; then
+        cat "$LOG_FILE"
+    else
+        grep '|diff$' "$LOG_FILE"
+    fi
+}
+
+install_script() {
+    if [ "$(id -u)" != "0" ]; then
+        echo "Error: -install requires root privileges." >&2
+        echo "错误：-install 需要 root 权限。" >&2
+        exit 1
+    fi
+
+    TARGET="/usr/bin/wg-du"
+    if [ -e "$TARGET" ]; then
+        echo "File exists: $TARGET. Overwrite? (y/N)"
+        read -r confirm
+        if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+            echo "Installation cancelled."
+            exit 0
+        fi
+    fi
+
+    mkdir -p /etc/wireguard
+    cp "$0" "$TARGET"
+    chmod +x "$TARGET"
+    echo "Installed to $TARGET"
+
+    cat << 'EOF'
+
+Next Steps / 后续步骤:
+1. Configure your peers in the script header.
+   在脚本头部配置你的Peer信息。
+2. Set up cron job (copy and run):
+   设置定时任务（复制并执行）：
+      crontab -e
+   Then add this line:
+      */5 * * * * wg-du
+3. Verify cron:
+      crontab -l
+
+Service Commands / 服务命令:
+- Linux (systemd): systemctl enable cron && systemctl start cron
+- OpenWrt: /etc/init.d/cron enable && /etc/init.d/cron start
+EOF
+}
+
+# =============================================================================
+# Main logic
+# =============================================================================
+
+case "$1" in
+    -h)
+        print_help
+        exit 0
+        ;;
+    -p)
+        if [ "$2" = "-a" ]; then
+            print_log all
+        else
+            print_log diff
+        fi
+        exit 0
+        ;;
+    -install)
+        install_script
+        exit 0
+        ;;
+    "")
+        # Main update logic
+        ;;
+    *)
+        echo "Unknown option: $1" >&2
+        print_help
+        exit 1
+        ;;
+esac
+
+# Auto-create log directory
+mkdir -p "$(dirname "$LOG_FILE")"
+
+peer_indices=$(set | grep -E '^PEER_[0-9]+_PUBLIC_KEY=' | sed 's/^PEER_\([0-9]*\)_PUBLIC_KEY=.*/\1/' | sort -n)
+
+if [ -z "$peer_indices" ]; then
+    log "ERROR: No PEER_N_PUBLIC_KEY defined in configuration"
+    exit 1
+fi
+
+for idx in $peer_indices; do
+    eval "public_key=\$PEER_${idx}_PUBLIC_KEY"
+    eval "endpoint_str=\$PEER_${idx}_ENDPOINT"
+    eval "dns_server=\$PEER_${idx}_DNS_SERVER"
+
+    if [ -z "$public_key" ] || [ -z "$endpoint_str" ] || [ -z "$dns_server" ]; then
+        log "Peer $idx: ERROR - Missing configuration"
+        exit 1
+    fi
+
+    domain="${endpoint_str%:*}"
+    port="${endpoint_str##*:}"
+    if [ "$domain" = "$endpoint_str" ]; then
+        log "Peer $idx: ERROR - Invalid endpoint format (expected domain:port)"
+        exit 1
+    fi
+
+    current_endpoint=$(get_current_endpoint "$public_key")
+    if [ -z "$current_endpoint" ]; then
+        log "Peer $idx: ERROR - Peer not found in wg show $INTERFACE output"
+        exit 1
+    fi
+
+    if echo "$current_endpoint" | grep -q '\['; then
+        current_ip=$(echo "$current_endpoint" | sed 's/^\[\([^]]*\)\]:[0-9]*$/\1/')
+        record_type="AAAA"
+    else
+        current_ip=$(echo "$current_endpoint" | cut -d: -f1)
+        record_type="A"
+    fi
+
+    resolved_ip=$(resolve_ip "$domain" "$dns_server" "$record_type")
+    if [ -z "$resolved_ip" ]; then
+        log "Peer $idx: ERROR - DNS query failed for $domain ($record_type via $dns_server)"
+        exit 1
+    fi
+
+    if [ "$resolved_ip" != "$current_ip" ]; then
+        if ! update_peer_endpoint "$public_key" "$resolved_ip" "$port"; then
+            log "Peer $idx: ERROR - wg set failed"
+            exit 1
+        fi
+        log "Peer${idx}|$domain|ago=${current_ip}:${port}|aft=${resolved_ip}:${port}|diff"
+    else
+        log "Peer${idx}|$domain|ago=${current_ip}:${port}|aft=${resolved_ip}:${port}|same"
+    fi
+done
+
+exit 0

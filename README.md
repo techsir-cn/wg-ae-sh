@@ -113,10 +113,10 @@ PEER_0_DNS_SERVER="dns17.hichina.com"
 每次执行必须记录以下信息到 `LOG_FILE`：
 
 ```
-[YYYY-MM-DD HH:MM:SS] [wg-du] Peer N: Domain=xxx | Current=xxx | Resolved=xxx | Status= same/diff
+YYYY-MM-DD_HH:MM:SS|PeerN|domain|ago=IP:PORT|aft=IP:PORT|same/diff
 ```
 
-- **Status=diff** 时，表示已执行更新操作
+- **diff** 时，表示已执行更新操作
 
 ---
 
