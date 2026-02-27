@@ -1,5 +1,5 @@
 #!/bin/sh
-# wg-du v1.1
+# wg-du v1.2
 # WireGuard 动态更新 (Dynamic Update)
 # Specification: https://github.com/techsir-cn/wg-du
 

@@ -11,7 +11,7 @@ WireGuard 动态更新（Dynamic Update）
 
 **WireGuard 动态更新 技术规范**  
 **说明：一个脚本，它通过强制解析Dns的方法，监测Endpoint域名对应的ip地址变动情况，并且使用变动后的最新ip地址，动态更新对端的Endpoint信息，在不重新启动WireGuard接口的情况下，维持隧道的通信**  
-**版本：v1.1**  
+**版本：v1.2**  
 **最后更新：2026-02-19**
 
 ---
@@ -134,6 +134,7 @@ YYYY-MM-DD_HH:MM:SS|PeerN|domain|ago=IP:PORT|aft=IP:PORT|same/diff
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
+| v1.2 | 2026-02-27 | 日志格式优化：去除空格和[wg-du]，新增端口记录，ago/aft 字段便于排查问题 |
 | v1.1 | 2026-02-19 | 项目更名为 wg-du；日志标识简化为 same/diff；支持命令行选项（-h/-p/-install）；自动创建 /etc/wireguard 目录；帮助信息含双语 cron 与服务管理指引 |
 | v1.0 | 2026-02-12 | 初始定稿：包含配置格式、DNS 规则、IP 版本匹配、CNAME 处理、多 Peer/接口支持 |
 
@@ -148,11 +149,11 @@ mkdir -p /etc/wireguard
 
 ### 步骤 2：下载并授权脚本
 ```sh
-wget https://github.com/techsir-cn/wg-du/releases/download/v1.1/wg-du -O wg-du && chmod +x wg-du
+wget https://github.com/techsir-cn/wg-du/releases/download/v1.2/wg-du -O wg-du && chmod +x wg-du
 ```
 如果网络有问题不能下载，则可以使用加速器下载
 ```sh
-wget https://ghfast.top/https://github.com/techsir-cn/wg-du/releases/download/v1.1/wg-du -O wg-du && chmod +x wg-du
+wget https://ghfast.top/https://github.com/techsir-cn/wg-du/releases/download/v1.2/wg-du -O wg-du && chmod +x wg-du
 ```
 
 ### 步骤 3：安装到系统路径（可选但推荐）
